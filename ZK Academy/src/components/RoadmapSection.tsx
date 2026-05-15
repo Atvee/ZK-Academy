@@ -37,14 +37,14 @@ const MAX_SKILL = 500; // normalisation ceiling for the radar chart
 
 function getLevelProgress(
   level: (typeof allLevels)[number],
-  completedLessons: string[]
+  completedLessonsSet: Set<string>
 ): { completed: number; total: number; pct: number } {
   let total = 0;
   let completed = 0;
   for (const mod of level.modules) {
     for (const lesson of mod.lessons) {
       total += 1;
-      if (completedLessons.includes(lesson.id)) completed += 1;
+      if (completedLessonsSet.has(lesson.id)) completed += 1;
     }
   }
   return { completed, total, pct: total === 0 ? 0 : Math.round((completed / total) * 100) };
@@ -52,12 +52,12 @@ function getLevelProgress(
 
 function getXpEarned(
   level: (typeof allLevels)[number],
-  completedLessons: string[]
+  completedLessonsSet: Set<string>
 ): number {
   let xp = 0;
   for (const mod of level.modules) {
     for (const lesson of mod.lessons) {
-      if (completedLessons.includes(lesson.id)) xp += lesson.xp;
+      if (completedLessonsSet.has(lesson.id)) xp += lesson.xp;
     }
   }
   return xp;
@@ -66,11 +66,11 @@ function getXpEarned(
 /** Returns the id of the first incomplete lesson in a level (or null). */
 function getFirstIncompleteLesson(
   level: (typeof allLevels)[number],
-  completedLessons: string[]
+  completedLessonsSet: Set<string>
 ): string | null {
   for (const mod of level.modules) {
     for (const lesson of mod.lessons) {
-      if (!completedLessons.includes(lesson.id)) return lesson.id;
+      if (!completedLessonsSet.has(lesson.id)) return lesson.id;
     }
   }
   return null;
@@ -246,22 +246,23 @@ export default function RoadmapSection() {
   const { userProgress, setCurrentLesson, setCurrentLevel, setView } = useAppStore();
 
   const completedLessons = userProgress.completedLessons;
+  const completedLessonsSet = useMemo(() => new Set(completedLessons), [completedLessons]);
 
   // Determine which levels are completed / active / locked
   const levelStates = useMemo(() => {
     return allLevels.map((level, idx) => {
-      const progress = getLevelProgress(level, completedLessons);
-      const xpEarned = getXpEarned(level, completedLessons);
+      const progress = getLevelProgress(level, completedLessonsSet);
+      const xpEarned = getXpEarned(level, completedLessonsSet);
       const prevLevel = idx > 0 ? allLevels[idx - 1] : null;
       const prevCompleted = prevLevel
-        ? getLevelProgress(prevLevel, completedLessons).pct === 100
+        ? getLevelProgress(prevLevel, completedLessonsSet).pct === 100
         : true;
       const isCompleted = progress.pct === 100;
       const isActive = !isCompleted && prevCompleted;
       const isLocked = !isCompleted && !prevCompleted;
       return { level, progress, xpEarned, isCompleted, isActive, isLocked };
     });
-  }, [completedLessons]);
+  }, [completedLessonsSet]);
 
   const handleLevelClick = (
     level: (typeof allLevels)[number],
@@ -270,7 +271,7 @@ export default function RoadmapSection() {
   ) => {
     if (!isActive && !isCompleted) return; // locked
     setCurrentLevel(level.id);
-    const firstIncomplete = getFirstIncompleteLesson(level, completedLessons);
+    const firstIncomplete = getFirstIncompleteLesson(level, completedLessonsSet);
     if (firstIncomplete) {
       setCurrentLesson(firstIncomplete);
     } else {
