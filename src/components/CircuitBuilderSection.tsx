@@ -193,17 +193,6 @@ function evaluateCircuit(nodes: GateNode[], connections: Connection[]): GateNode
   const nodeMap = new Map(nodes.map((n) => [n.id, { ...n }]))
   const evaluated = new Set<string>()
 
-  // Pre-compute incoming connections map
-  const incomingMap = new Map<string, Connection[]>()
-  for (const conn of connections) {
-    let incoming = incomingMap.get(conn.toGateId)
-    if (!incoming) {
-      incoming = []
-      incomingMap.set(conn.toGateId, incoming)
-    }
-    incoming.push(conn)
-  }
-
   // Reset computed values
   for (const node of nodeMap.values()) {
     if (node.type === 'input' || node.type === 'const') {
@@ -224,7 +213,7 @@ function evaluateCircuit(nodes: GateNode[], connections: Connection[]): GateNode
       if (evaluated.has(node.id)) continue
       if (node.type !== 'add' && node.type !== 'mul' && node.type !== 'output') continue
 
-      const incoming = incomingMap.get(node.id) || []
+      const incoming = connections.filter((c) => c.toGateId === node.id)
       const inputValues: Map<number, number> = new Map()
 
       for (const conn of incoming) {
