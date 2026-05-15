@@ -1,0 +1,2 @@
+[test]
+env = { "ZUSTAND_PERSIST_NO_WARN" = "true" }
